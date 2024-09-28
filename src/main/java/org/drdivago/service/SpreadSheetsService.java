@@ -17,8 +17,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
@@ -27,7 +29,7 @@ public class SpreadSheetsService {
     private static final java.io.File DATA_STORE_DIR = new java.io.File(System.getProperty("user.home"), ".credentials/sheets.googleapis.com-java-quickstart");
     private static final String CREDENTIALS_FILE_PATH = "/client_secret.json";
 
-    private Credential getCredentials() throws IOException, GeneralSecurityException {
+    private Optional<Credential> getCredentials() throws IOException, GeneralSecurityException {
 
         try (InputStream inputStream = SpreadSheetsService.class.getResourceAsStream(CREDENTIALS_FILE_PATH)) {
             if (inputStream != null) {
@@ -45,34 +47,37 @@ public class SpreadSheetsService {
                         .setAccessType("offline")
                         .build();
 
-                return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
+                return Optional.of(new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user"));
             }
-
         }
 
-        return null;
+        return Optional.empty();
 
     }
 
     public List<List<String>> getData(String spreadSheetId, String range) throws GeneralSecurityException, IOException {
-        Credential credential = getCredentials();
-        Sheets sheetsService = new Sheets.Builder(
-                GoogleNetHttpTransport.newTrustedTransport(),
-                GsonFactory.getDefaultInstance(),
-                credential
-        )
-                .setApplicationName(APPLICATION_NAME)
-                .build();
-        // Adjust this range as needed
+        Optional<Credential> credential = getCredentials();
+        return credential.map(cred -> {
+            try {
+                Sheets sheetsService = new Sheets.Builder(
+                        GoogleNetHttpTransport.newTrustedTransport(),
+                        GsonFactory.getDefaultInstance(),
+                        cred
+                )
+                        .setApplicationName(APPLICATION_NAME)
+                        .build();
+                ValueRange response = sheetsService.spreadsheets().values()
+                        .get(spreadSheetId, range)
+                        .execute();
 
-        ValueRange response = sheetsService.spreadsheets().values()
-                .get(spreadSheetId, range)
-                .execute();
-
-        return response.getValues().stream()
-                .map(row -> row.stream()
-                        .map(Object::toString)
-                        .collect(Collectors.toList()))
-                .toList();
+                return response.getValues().stream()
+                        .map(row -> row.stream()
+                                .map(Object::toString)
+                                .collect(Collectors.toList()))
+                        .toList();
+            } catch (IOException | GeneralSecurityException e) {
+                throw new RuntimeException(e);
+            }
+        }).orElse(Collections.emptyList());
     }
 }
