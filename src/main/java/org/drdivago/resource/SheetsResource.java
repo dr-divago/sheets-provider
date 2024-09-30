@@ -24,10 +24,18 @@ public class SheetsResource {
     @GET
     @Path("/sheet/{spreadSheetId}")
     @Produces(MediaType.APPLICATION_JSON)
-    public List<Exercise> getData(@PathParam("spreadSheetId") String spreadId, @QueryParam("range")String range) {
+    public Response getData(@PathParam("spreadSheetId") String spreadId, @QueryParam("range")String range) {
         try {
             List<List<String>> data = spreadSheetsService.getData(spreadId, range);
-            return jsonConverterService.parse(data);
+            if (data.isEmpty()) {
+                return Response.noContent().build();
+            }
+            List<Exercise> exercises =  jsonConverterService.parse(data);
+            if (exercises.isEmpty()) {
+                return Response.noContent().build();
+            }
+
+            return Response.ok(exercises).build();
 
         } catch (IOException e) {
             throw new WebApplicationException("Error accessing Google Sheets", Response.Status.INTERNAL_SERVER_ERROR);

@@ -33,7 +33,7 @@ public class JsonConverterService {
                 System.out.println(row.get(j));
 
             }
-            exercises.add(new Exercise(exerciseName, new Settings(Collections.emptyList(), rest, notes)));
+            exercises.add(new Exercise(exerciseName, new Settings(Collections.emptyList(), Collections.emptyList(), "",  rest, notes)));
         }
         return exercises;
     }
